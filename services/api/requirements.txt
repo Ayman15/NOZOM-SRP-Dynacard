@@ -1,0 +1,4 @@
+numpy>=2.0
+fastapi>=0.110
+uvicorn[standard]>=0.29
+psycopg[binary]>=3.1

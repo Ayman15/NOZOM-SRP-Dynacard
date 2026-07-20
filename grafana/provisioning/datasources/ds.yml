@@ -1,0 +1,16 @@
+apiVersion: 1
+datasources:
+  - name: SRP-Timescale
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    user: srp
+    secureJsonData:
+      password: srp
+    jsonData:
+      database: srp
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: true
+    uid: srp_ts
+    isDefault: true

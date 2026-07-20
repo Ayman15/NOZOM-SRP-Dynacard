@@ -1,0 +1,94 @@
+{
+  "uid": "srp-fleet",
+  "title": "SRP Fleet Overview",
+  "tags": ["srp", "dynacard"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": { "from": "now-72h", "to": "now" },
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "well",
+        "label": "Well",
+        "type": "query",
+        "datasource": { "type": "postgres", "uid": "srp_ts" },
+        "query": "SELECT well_id FROM wells ORDER BY well_id",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Wells reporting faults (latest)",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "srp_ts" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" },
+        "thresholds": { "steps": [
+          { "color": "green", "value": null },
+          { "color": "orange", "value": 1 },
+          { "color": "red", "value": 5 } ] } } },
+      "targets": [ { "format": "table", "rawSql":
+        "SELECT count(*) AS value FROM well_latest WHERE diagnosis <> 'full'" } ]
+    },
+    {
+      "type": "piechart",
+      "title": "Fleet diagnosis mix (latest card per well)",
+      "gridPos": { "h": 8, "w": 9, "x": 6, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "srp_ts" },
+      "targets": [ { "format": "table", "rawSql":
+        "SELECT diagnosis, count(*) AS n FROM well_latest GROUP BY diagnosis ORDER BY n DESC" } ]
+    },
+    {
+      "type": "table",
+      "title": "Wells needing attention",
+      "gridPos": { "h": 8, "w": 9, "x": 15, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "srp_ts" },
+      "targets": [ { "format": "table", "rawSql":
+        "SELECT well_id, name, field, diagnosis, round(fillage_pct::numeric,1) AS fillage, round(pump_disp_bpd::numeric,1) AS bpd FROM well_latest WHERE diagnosis <> 'full' ORDER BY fillage_pct ASC" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Pump fillage %  (drop = pump-off / gas)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "postgres", "uid": "srp_ts" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 } },
+      "targets": [ { "format": "time_series", "rawSql":
+        "SELECT ts AS time, well_id AS metric, fillage_pct AS value FROM card_metrics WHERE well_id IN ($well) AND $__timeFilter(ts) ORDER BY ts" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Pump displacement (bbl/day)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "postgres", "uid": "srp_ts" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [ { "format": "time_series", "rawSql":
+        "SELECT ts AS time, well_id AS metric, pump_disp_bpd AS value FROM card_metrics WHERE well_id IN ($well) AND $__timeFilter(ts) ORDER BY ts" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Peak / min polished-rod load (lb)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "postgres", "uid": "srp_ts" },
+      "fieldConfig": { "defaults": { "unit": "lbf" } },
+      "targets": [
+        { "format": "time_series", "rawSql":
+          "SELECT ts AS time, well_id || ' PPRL' AS metric, pprl AS value FROM card_metrics WHERE well_id IN ($well) AND $__timeFilter(ts) ORDER BY ts" },
+        { "format": "time_series", "rawSql":
+          "SELECT ts AS time, well_id || ' MPRL' AS metric, mprl AS value FROM card_metrics WHERE well_id IN ($well) AND $__timeFilter(ts) ORDER BY ts" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Cards ingested per hour (all wells)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "postgres", "uid": "srp_ts" },
+      "targets": [ { "format": "time_series", "rawSql":
+        "SELECT bucket AS time, sum(n_cards) AS value FROM card_metrics_hourly WHERE $__timeFilter(bucket) GROUP BY bucket ORDER BY bucket" } ]
+    }
+  ]
+}
